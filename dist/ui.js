@@ -1,0 +1,28 @@
+import {projects} from './projects.js';
+import {readQuality,saveQuality,qualityModes,qualityLabels} from './graphics.js';
+const mobileScreen=matchMedia('(max-width:650px), (any-pointer:coarse)');
+function mobileBack(){if(!mobileScreen.matches)return;const back=document.createElement('button');back.type='button';back.className='mobile-back';back.textContent='← Menu';back.onclick=showMobileMenu;document.querySelector('#content').prepend(back);}
+function showMobileMenu(){
+ state.paused=true;
+ const mapVisible=document.body.classList.contains('mobile-map-visible');
+ $('#content').innerHTML=`<h2>Felipe World</h2><p class="menu-progress">${$('#count').textContent}</p><div class="mobile-menu-actions">
+ <button id="menu-resume" class="menu-primary">Continuar dirigindo <span aria-hidden="true">→</span></button>
+ <button id="menu-projects">Explorar projetos <span aria-hidden="true">↗</span></button>
+ <button id="menu-map" aria-pressed="${mapVisible}">${mapVisible?'Ocultar':'Mostrar'} mapa <span aria-hidden="true">⌖</span></button>
+ <button id="menu-settings">Configurações <span aria-hidden="true">⚙</span></button>
+ <button id="menu-recover">Recuperar carro <span aria-hidden="true">↺</span></button>
+ <button id="menu-camera">Centralizar câmera <span aria-hidden="true">◎</span></button>
+ <a href="classico.html">Versão clássica <span aria-hidden="true">↗</span></a></div><p class="menu-help">Arraste o joystick: cima para avançar, baixo para frear e dar ré. Use as diagonais para fazer curvas.</p>`;
+ $('#menu-resume').onclick=()=>{$('#modal').close();dismissIntro();};
+ $('#menu-projects').onclick=()=>{$('#projects').click();mobileBack();};
+ $('#menu-settings').onclick=()=>{$('#settings').click();mobileBack();};
+ $('#menu-map').onclick=()=>{document.body.classList.toggle('mobile-map-visible');$('#modal').close();};
+ $('#menu-recover').onclick=()=>{$('#modal').close();world?.reset();};
+ $('#menu-camera').onclick=()=>{$('#recenter').click();$('#modal').close();};
+ if(!$('#modal').open)$('#modal').showModal();
+}
+const $=s=>document.querySelector(s);export let world=null;export const state={paused:false,sound:false,night:false,quality:readQuality()};let toastTimer;export function toast(text){$('#toast').textContent=text;$('#toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),3200)}export function dismissIntro(){world?.skipIntro();$('#welcome').classList.add('dismissed');$('#start').disabled=true}
+export function showProject(p){state.paused=true;$('#content').innerHTML=`<div style="font:9px monospace;letter-spacing:2px;color:#9b895e;margin-bottom:15px">${p.label}</div><h2>${p.name}</h2><p>${p.desc}</p><div class="chips">${p.stack.map(s=>`<span>${s}</span>`).join('')}</div><p style="font-size:11px;margin-top:25px">Explore o repositório para conhecer o código e a documentação do projeto.</p><a class="repo" target="_blank" rel="noopener" href="https://github.com/Felipecoder07/${p.repo}">Ver projeto no GitHub ↗</a>`;if(!$('#modal').open)$('#modal').showModal()}
+$('#modal').addEventListener('close',()=>state.paused=false);$('#close').onclick=()=>$('#modal').close();$('#projects').onclick=()=>{state.paused=true;$('#content').innerHTML='<h2>Escolha seu destino.</h2><p>Seis projetos. Seis lugares para descobrir.</p><div class="project-list"></div>';projects.forEach(p=>{const b=document.createElement('button');b.className='destination';b.innerHTML=`<b>${p.name}</b><small>Visitar projeto ↗</small>`;b.onclick=()=>{world?.teleport(p);showProject(p);dismissIntro()};$('.project-list').append(b)});$('#modal').showModal()};$('#reset').onclick=()=>{world?.reset();toast('De volta ao início. Boa viagem!')};$('#start').onclick=()=>{dismissIntro();world?.start()};$('#sound').onclick=()=>{state.sound=!state.sound;$('#sound').textContent='Som: '+(state.sound?'ligado':'desligado');$('#sound').setAttribute('aria-pressed',state.sound);world?.audio(state.sound)};$('#settings').onclick=()=>{state.paused=true;$('#content').innerHTML=`<h2>Do seu jeito.</h2><div class="setting">Iluminação<button id="day">${state.night?'Noite':'Fim de tarde'}</button></div><div class="setting">Qualidade gráfica<button id="quality" aria-label="Alternar qualidade gráfica">${qualityLabels[state.quality]}</button></div><div class="setting">Som do motor<button id="audio">${state.sound?'Ligado':'Desligado'}</button></div><p>A qualidade automática ajusta a resolução para favorecer a fluidez, mantendo os modelos e detalhes. Clique na qualidade para escolher outro modo.</p><p class="keyboard-help">WASD / setas: dirigir<br>Espaço: freio de mão · H: buzina · R: recuperar<br>C: recentralizar câmera<br>Arraste o cenário: girar câmera · Roda do mouse: zoom</p><a class="repo" href="classico.html">Abrir versão clássica ↗</a>`;$('#day').onclick=e=>{state.night=!state.night;world?.lighting(state.night);e.target.textContent=state.night?'Noite':'Fim de tarde'};$('#quality').onclick=e=>{state.quality=qualityModes[(qualityModes.indexOf(state.quality)+1)%qualityModes.length];world?.quality(state.quality);saveQuality(state.quality);e.target.textContent=qualityLabels[state.quality]};$('#audio').onclick=e=>{$('#sound').click();e.target.textContent=state.sound?'Ligado':'Desligado'};$('#modal').showModal()};
+$('#mobile-menu').onclick=showMobileMenu;
+import('./world.js').then(m=>{world=m;$('#loading').style.opacity=0;setTimeout(()=>$('#loading').remove(),650)}).catch(e=>{console.error(e);$('#loading h2').textContent='O passeio 3D não pôde iniciar.';$('#load-status').textContent='Este modo precisa de WebGL. Use um navegador com aceleração gráfica. Você também pode explorar os projetos na versão clássica.';$('.loader-line').style.display='none';});

@@ -1,0 +1,7 @@
+export const projects=[
+{id:'arenix',name:'Arenix',repo:'Arenix',x:-23,z:-16,color:'#7fa36c',desc:'Gestão de arenas esportivas: reservas, clientes, cobranças e integração com Mercado Pago.',stack:['React','TypeScript','Node.js','SQLite'],label:'ARENA ESPORTIVA'},
+{id:'mapa',name:'Mapa do Calouro',repo:'mapa-calouro',x:21,z:-19,color:'#deb36b',desc:'Guia interativo da UFC Russas, com locais por categoria, mapas e consulta de rotas.',stack:['React','Leaflet','Supabase'],label:'CAMPUS UFC'},
+{id:'pet',name:'Gamificação PET',repo:'gameficacao-pet',x:-25,z:16,color:'#ad9ac9',desc:'Registro de atividades, comprovantes e validação de entregas para organizar o ranking mensal de contribuições do grupo.',stack:['TypeScript','Cloudflare D1','R2'],label:'PRAÇA DAS CONQUISTAS'},
+{id:'orto',name:'OrtoBase',repo:'ortobase-saas',x:24,z:14,color:'#88b7b0',desc:'Projeto de gestão odontológica com agenda, pacientes e regras financeiras.',stack:['TypeScript','React','Prisma'],label:'CLÍNICA ORTOBASE'},
+{id:'food',name:'Lanchonete',repo:'Gerenciamento-de-Lanchonete',x:-9,z:-36,color:'#d78562',desc:'Backend para gestão de produtos, pedidos e fluxo da cozinha.',stack:['Python','FastAPI'],label:'LANCHONETE DO CÓDIGO'},
+{id:'lost',name:'Achados & Perdidos',repo:'Achados-Perdidos-UFC',x:4,z:33,color:'#a5b67a',desc:'Portal acadêmico para cadastrar e consultar objetos achados e perdidos, com área administrativa.',stack:['JavaScript','Express','SQLite'],label:'ACHADOS & PERDIDOS'}];
