@@ -9,6 +9,7 @@ export function vehicle(scene){
  const paint=new T.MeshStandardMaterial({color:'#d78256',roughness:.38,metalness:.18});
  const glass=new T.MeshStandardMaterial({color:'#8fc6cf',roughness:.16,metalness:.15,transparent:true,opacity:.38,depthWrite:false});
  const metal=new T.MeshStandardMaterial({color:'#a6b3a8',roughness:.35,metalness:.65});
+ const rimMaterial=metal.clone();
  const headlight=new T.MeshStandardMaterial({color:'#fff0bf',emissive:'#ffe1a0',emissiveIntensity:.35});
  const taillight=new T.MeshStandardMaterial({color:'#b43b32',emissive:'#ff3020',emissiveIntensity:.15});
  const dark='#293e39',cream='#f0e5cb';
@@ -51,12 +52,12 @@ export function vehicle(scene){
  for(const z of [-.55,-.1,.35,.85])box(body,1.46,.07,.07,dark,0,2.38,z);
  rounded(.9,.3,.8,material('#839473'),0,2.56,.3,.1);for(const x of [-.3,.3])box(body,.06,.32,.82,cream,x,2.56,.3);
  const spare=cylinder(body,.48,.48,.26,dark,0,1.43,1.84,24);spare.rotation.x=Math.PI/2;
- const hub=cylinder(body,.25,.25,.28,cream,0,1.43,1.86,12);hub.rotation.x=Math.PI/2;hub.material=metal;
+ const hub=cylinder(body,.25,.25,.28,cream,0,1.43,1.86,12);hub.rotation.x=Math.PI/2;hub.material=rimMaterial;
  const wheels=[];
  for(const x of [-1.03,1.03])for(const z of [-1.06,1.06]){
   const pivot=new T.Group(),wheel=new T.Group();pivot.position.set(x,.57,z);pivot.add(wheel);car.add(pivot);
   const tire=cylinder(wheel,.51,.51,.42,dark,0,0,0,24);tire.rotation.z=Math.PI/2;
-  for(const side of [-1,1]){const rim=cylinder(wheel,.29,.29,.03,cream,side*.22,0,0,12);rim.rotation.z=Math.PI/2;rim.material=metal;for(let j=0;j<5;j++)box(wheel,.04,.06,.06,dark,side*.245,Math.sin(j*1.257)*.17,Math.cos(j*1.257)*.17);}
+  for(const side of [-1,1]){const rim=cylinder(wheel,.29,.29,.03,cream,side*.22,0,0,12);rim.rotation.z=Math.PI/2;rim.material=rimMaterial;for(let j=0;j<5;j++)box(wheel,.04,.06,.06,dark,side*.245,Math.sin(j*1.257)*.17,Math.cos(j*1.257)*.17);}
   for(let j=0;j<16;j++){const tread=box(wheel,.44,.065,.14,'#3a4a40',0,Math.sin(j*Math.PI/8)*.49,Math.cos(j*Math.PI/8)*.49);tread.rotation.x=-j*Math.PI/8;}
   const shock=cylinder(car,.065,.065,.45,'#c6ac72',x*.76,.62,z,8);
   wheels.push({pivot,wheel,front:z<0,shock,x,z});
@@ -65,17 +66,17 @@ export function vehicle(scene){
  const headlights=body.children.filter(o=>o.userData.headlight);
  const pitch=spring(),roll=spring(),heave=spring();let lastSpeed=0,spin=0;
  function reset(){for(const s of [pitch,roll,heave])s.value=s.velocity=0;lastSpeed=0;body.position.y=0;body.rotation.set(0,0,0);}
- function update(dt,driver,{night=false,braking=false,reduced=false,paused=false}={}){
-  const acceleration=paused?0:T.MathUtils.clamp((driver.speed-lastSpeed)/Math.max(dt,.001),-36,23);lastSpeed=driver.speed;
-  const lateral=T.MathUtils.clamp(driver.speed*driver.speed*Math.tan(driver.steer)/2.12,-14,14);
+ function update(dt,driver,{night=false,braking=false,reduced=false,paused=false,motionSpeed=driver.speed}={}){
+  const acceleration=paused?0:T.MathUtils.clamp((motionSpeed-lastSpeed)/Math.max(dt,.001),-36,23);lastSpeed=motionSpeed;
+  const lateral=T.MathUtils.clamp(motionSpeed*motionSpeed*Math.tan(driver.steer)/2.12,-14,14);
   const amount=reduced?0:1;
   body.rotation.x=advanceSpring(pitch,acceleration*.003*amount,dt);
   body.rotation.z=advanceSpring(roll,-lateral*.006*amount,dt);
   body.position.y=advanceSpring(heave,-Math.min(Math.abs(acceleration)*.0015,.05)*amount,dt,13);
-  spin=(spin-driver.speed*dt/.51)%(Math.PI*2);
+  spin=(spin-motionSpeed*dt/.51)%(Math.PI*2);
   for(const w of wheels){w.wheel.rotation.x=spin;w.pivot.rotation.y=w.front?wheelSteering(driver.steer,w.x):0;const compression=body.position.y+body.rotation.z*w.x-body.rotation.x*w.z;w.shock.scale.y=T.MathUtils.clamp(1+compression/.45,.55,1.45);w.shock.position.y=.62+compression*.5;}
   headlight.emissiveIntensity=night?2:.35;taillight.emissiveIntensity=braking?3:night?.65:.15;
   for(const light of headlights)light.intensity=night?12:0;
  }
- return {car,body,wheels,update,reset};
+ return {car,body,wheels,update,reset,paint,rimMaterial};
 }

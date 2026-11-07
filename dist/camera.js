@@ -1,6 +1,11 @@
 import * as T from './three.js';
 
-export const cameraTuning=Object.freeze({introDuration:4.5,minZoom:13,maxZoom:36,zoom:22,follow:5,lookAhead:.22});
+export const cameraTuning=Object.freeze({introDuration:4.5,minZoom:13,maxZoom:36,zoom:22,follow:5,lookAhead:.22,near:1,far:250});
+export function createWorldCamera(aspect){
+ // The closest orbit is 13 m away. A 1 m near plane preserves depth precision
+ // for centimetre-separated terrain/curbs/roads in the distant opening view.
+ return new T.PerspectiveCamera(42,aspect,cameraTuning.near,cameraTuning.far);
+}
 export function createCameraRig(camera,canvas,car,occluders,reduced){
  const cfg=cameraTuning,focus=car.position.clone(),target=new T.Vector3(),desired=new T.Vector3(),ray=new T.Raycaster();
  const hidden=new Set(),hits=[],candidates=[],intersection=new T.Vector3();
@@ -18,7 +23,15 @@ export function createCameraRig(camera,canvas,car,occluders,reduced){
  skipButton.onclick=skip;
  document.querySelector('#recenter').onclick=recenter;
  reduced.addEventListener('change',()=>{if(reduced.matches)skip();});
- function update(dt,speed,paused){
+ function update(dt,speed,paused,cinematic=false,workshop=false){
+  if(workshop){
+   skip();restore();drag=null;
+   const portrait=camera.aspect<1||(canvas.clientWidth<=750&&canvas.clientHeight>540),side=portrait?0:2.8,a=.6,distance=portrait?17:14;
+   target.set(car.position.x+Math.cos(a)*side,car.position.y+(portrait?-1.5:1),car.position.z-Math.sin(a)*side);
+   desired.set(car.position.x+Math.sin(a)*distance,car.position.y+7.5,car.position.z+Math.cos(a)*distance);
+   const blend=reduced.matches?1:1-Math.exp(-5*dt);
+   focus.lerp(target,blend);camera.position.lerp(desired,blend);camera.lookAt(focus);return;
+  }
   occlusionClock+=dt;
   if(intro){
    if(!paused)introTime+=dt;
@@ -27,11 +40,12 @@ export function createCameraRig(camera,canvas,car,occluders,reduced){
    camera.position.set(focus.x+Math.sin(a)*distance,T.MathUtils.lerp(66,zoom*1.05,ease),focus.z+Math.cos(a)*distance);
    camera.lookAt(focus.x,car.position.y+.7,focus.z);if(p===1)skip();return;
   }
+  const viewZoom=cinematic?32:zoom;
   const ahead=reduced.matches?0:speed*cfg.lookAhead;
   target.set(car.position.x-Math.sin(car.rotation.y)*ahead,car.position.y+.7,car.position.z-Math.cos(car.rotation.y)*ahead);
   focus.lerp(target,1-Math.exp(-cfg.follow*dt));
   const extra=reduced.matches?0:Math.min(Math.abs(speed)/24,1)*3;
-  desired.set(focus.x+Math.sin(angle)*(zoom+extra),focus.y+zoom*1.05+extra,focus.z+Math.cos(angle)*(zoom+extra));
+  desired.set(focus.x+Math.sin(angle)*(viewZoom+extra),focus.y+viewZoom*1.05+extra,focus.z+Math.cos(angle)*(viewZoom+extra));
   camera.position.lerp(desired,1-Math.exp(-cfg.follow*dt));camera.lookAt(focus);
   // Hide only meshes intersecting the sightline to the car, without editing shared materials.
   // Three rays protect the centre and both sides of the small vehicle.

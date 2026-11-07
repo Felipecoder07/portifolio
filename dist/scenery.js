@@ -1,9 +1,14 @@
 import * as T from './three.js';
 import {box,cylinder,sphere,sign,material,location} from './models.js';
 import {batchRigidMeshes} from './render-optimization.js';
+import {secrets} from './secrets.js';
+import {createAmbientLife} from './ambient-life.js';
+import {createOcean} from './ocean.js';
+import {trimTrailJunction} from './ground-junction.js';
 import {palette as P,routes,bridge,tunnel,secret,terrainHeight,surfaceHeight,bridgeHeight,nearRoad,routeSamples,buildingColliders,infrastructureColliders} from './island-layout.js';
 
 export function createScenery(scene,projects){
+ const ambient=createAmbientLife(scene,projects);
  const root=new T.Group();root.name='Ilha do Desenvolvedor';scene.add(root);
  const obstacles=[...buildingColliders(projects),...infrastructureColliders()],occluders=[],animated=[],fixtures=[];
  let seed=71;const random=()=>{seed=seed*16807%2147483647;return(seed-1)/2147483646;};
@@ -16,19 +21,30 @@ export function createScenery(scene,projects){
  function roof(g,width,depth,y,color){const shape=new T.Shape();shape.moveTo(-width/2,0);shape.lineTo(0,1.2);shape.lineTo(width/2,0);shape.closePath();const mesh=new T.Mesh(new T.ExtrudeGeometry(shape,{depth,bevelEnabled:false}),material(color));mesh.position.set(0,y,-depth/2);mesh.castShadow=true;g.add(mesh);return mesh;}
 
  // A single vertex-coloured terrain mesh carries grass, beach and the lagoon basin.
- const positions=[],colors=[],indices=[],rings=128,sectors=320;
+ const positions=[],colors=[],indices=[],rings=184,sectors=320;
  const grass=new T.Color(P.grass),sand=new T.Color(P.sand),wet=new T.Color('#a4b5a0'),shade=new T.Color(P.grassDark);
  for(let r=0;r<=rings;r++)for(let a=0;a<=sectors;a++){
-  const radius=58*r/rings,angle=a/sectors*Math.PI*2,x=Math.cos(angle)*radius,z=Math.sin(angle)*radius,y=terrainHeight(x,z);
+  const radius=82*r/rings,angle=a/sectors*Math.PI*2,x=Math.cos(angle)*radius,z=Math.sin(angle)*radius,y=terrainHeight(x,z);
   positions.push(x,y,z);const color=grass.clone().lerp(shade,(Math.sin(x*.17)*Math.cos(z*.13)+1)*.08);
-  color.lerp(sand,T.MathUtils.smoothstep(radius,49,55));if(y<-.2)color.lerp(sand,T.MathUtils.smoothstep(-y,.2,1));if(y<-1.2)color.lerp(wet,.65);colors.push(color.r,color.g,color.b);
+  color.lerp(sand,T.MathUtils.smoothstep(radius,73,79));if(y<-.2)color.lerp(sand,T.MathUtils.smoothstep(-y,.2,1));if(y<-1.2)color.lerp(wet,.65);colors.push(color.r,color.g,color.b);
   if(r<rings&&a<sectors){const i=r*(sectors+1)+a;indices.push(i,i+1,i+sectors+1,i+1,i+sectors+2,i+sectors+1);}
  }
- const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.Float32BufferAttribute(positions,3));geometry.setAttribute('color',new T.Float32BufferAttribute(colors,3));geometry.setIndex(indices);geometry.computeVertexNormals();
+ // Refine only the banks around the underpass so its new curves match ground contact.
+ const refined=[],midpoints=new Map();
+ function midpoint(a,b){
+  const key=a<b?`${a}:${b}`:`${b}:${a}`;if(midpoints.has(key))return midpoints.get(key);
+  const x=(positions[a*3]+positions[b*3])/2,z=(positions[a*3+2]+positions[b*3+2])/2,id=positions.length/3;
+  positions.push(x,terrainHeight(x,z),z);for(let k=0;k<3;k++)colors.push((colors[a*3+k]+colors[b*3+k])/2);
+  midpoints.set(key,id);return id;
+ }
+ for(let i=0;i<indices.length;i+=3){
+  const [a,b,c]=indices.slice(i,i+3),x=(positions[a*3]+positions[b*3]+positions[c*3])/3,z=(positions[a*3+2]+positions[b*3+2]+positions[c*3+2])/3;
+  if((Math.abs(x-bridge.x)<9&&Math.abs(z-bridge.z)<14)||(x>72&&Math.abs(z)<12)){const ab=midpoint(a,b),bc=midpoint(b,c),ca=midpoint(c,a);if(x>72){for(const [u,v,w] of [[a,ab,ca],[ab,b,bc],[ca,bc,c],[ab,bc,ca]]){const uv=midpoint(u,v),vw=midpoint(v,w),wu=midpoint(w,u);refined.push(u,uv,wu,uv,v,vw,wu,vw,w,uv,vw,wu);}}else refined.push(a,ab,ca,ab,b,bc,ca,bc,c,ab,bc,ca);}else refined.push(a,b,c);
+ }
+ const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.Float32BufferAttribute(positions,3));geometry.setAttribute('color',new T.Float32BufferAttribute(colors,3));geometry.setIndex(refined);geometry.computeVertexNormals();
  const terrain=new T.Mesh(geometry,new T.MeshStandardMaterial({vertexColors:true,roughness:1,side:T.DoubleSide}));terrain.receiveShadow=true;terrain.name='terrain';root.add(terrain);
- cylinder(root,57.9,59.5,3.4,'#b7a17d',0,-3.8,0,96);
- const waterMaterial=new T.MeshStandardMaterial({color:P.water,roughness:.32,metalness:.16});
- const water=new T.Mesh(new T.PlaneGeometry(500,500),waterMaterial);water.rotation.x=-Math.PI/2;water.position.y=-1.35;water.name='water';root.add(water);
+ cylinder(root,81.9,83.5,3.4,'#b7a17d',0,-3.8,0,96);
+ const ocean=createOcean(root);const {water,shore}=ocean;
 
  // Roads follow the same height function used by the car; edges are wider stone ribbons.
  const routeLines=routes.map(route=>({...route,samples:routeSamples(route,.8)}));
@@ -62,7 +78,8 @@ export function createScenery(scene,projects){
    }
    if(i<samples.length-1)for(let column=0;column<columns;column++){const k=i*stride+column;idx.push(k,k+1,k+stride,k+1,k+stride+1,k+stride);}
   }
-  const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(pos,3));geo.setIndex(idx);geo.computeVertexNormals();
+  const trimmed=trimTrailJunction(route,pos,idx);
+  const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(trimmed.positions,3));geo.setIndex(trimmed.indices);geo.computeVertexNormals();
   const mesh=new T.Mesh(geo,mat);mesh.name=`${offset>.06?'road':'curb'}-${route.id}`;mesh.receiveShadow=true;root.add(mesh);return mesh;
  }
  const roadMaterial=new T.MeshStandardMaterial({color:P.road,roughness:.97,side:T.DoubleSide});
@@ -71,17 +88,24 @@ export function createScenery(scene,projects){
  // resolve coincident junction surfaces without physically raising the roads.
  routeLines.forEach((route,i)=>{
   const edge=edgeMaterial.clone(),pavement=(route.id==='lookout'?wood:roadMaterial).clone();
-  for(const mat of [edge,pavement]){mat.polygonOffset=true;mat.polygonOffsetFactor=0;mat.polygonOffsetUnits=-(i+1);}
+  if(route.id.startsWith('trail-')){edge.color.set('#91a77c');pavement.color.set('#b6a17c');}
+  for(const [layer,mat] of [edge,pavement].entries()){
+   mat.polygonOffset=true;
+   // A slope-aware offset remains stable in the distant, oblique intro view.
+   // Pavement must also win over the wider curb at every road junction.
+   mat.polygonOffsetFactor=-(layer+1);mat.polygonOffsetUnits=-(layer*routeLines.length+i+1);
+  }
   ribbon(route,route.width+1.1,edge,.04).renderOrder=1;
   ribbon(route,route.width,pavement,.085).renderOrder=2;
  });
  edgeMaterial.dispose();roadMaterial.dispose();wood.dispose();
- const coastal=routeLines[0],dashes=coastal.samples.filter((_,i)=>i%5===0);
+ const coastal=routeLines.find(r=>r.id==='coast'),dashes=coastal.samples.filter((_,i)=>i%5===0);
  const markings=new T.InstancedMesh(new T.BoxGeometry(.13,.015,1.1),material('#e7dbb4'),dashes.length),dummy=new T.Object3D();
  dashes.forEach((p,i)=>{const next=coastal.samples[(i*5+1)%coastal.samples.length];dummy.position.set(p.x,surfaceHeight(p.x,p.z)+.015,p.z);dummy.rotation.set(0,Math.atan2(next.x-p.x,next.z-p.z),0);dummy.scale.set(1,1,1);dummy.updateMatrix();markings.setMatrixAt(i,dummy.matrix);});root.add(markings);
 
- // Central arrival court and a working, open-front garage.
- const plaza=group();cylinder(plaza,10.5,10.5,.1,P.curb,0,.025,10,64);cylinder(plaza,9.8,9.8,.045,'#d8cbb0',0,.085,10,64);
+ // Compact resting area beside the garage, clear of every driving lane.
+ const plaza=group(-12,0,-6);plaza.name='side-plaza';
+ cylinder(plaza,3.6,3.6,.1,P.curb,0,.025,0,48);cylinder(plaza,3.3,3.3,.045,'#d8cbb0',0,.085,0,48);
  const garage=group();garage.name='garage';occluders.push(garage);
  box(garage,13,.15,9.5,'#c5bc9f',0,.02,0);
  for(const x of [-6.1,6.1]){box(garage,.7,4.2,9,'#d8c5a2',x,2.1,0);box(garage,.8,.5,9.2,P.ink,x,.3,0);}
@@ -94,15 +118,15 @@ export function createScenery(scene,projects){
  box(garage,3.4,.8,1,'#a77d55',-3.6,.4,-3.3);colliderBox(-3.6,-3.3,1.7,.5);
  for(const x of [-4.6,-3.6,-2.6])box(garage,.55,.55,.5,'#57786b',x,1.08,-3.3);
  const board=box(garage,3.7,1.5,.1,P.ink,-3.6,2,-4);for(let i=0;i<5;i++)box(garage,.05,.65,.07,'#baa983',-4.9+i*.6,2,-3.9);
- sign(plaza,'ILHA DO DESENVOLVEDOR',6.5,.65,-7,2.6,13,P.ink,P.cream);cylinder(plaza,.08,.1,2.8,P.ink,-9.8,1.4,13,8);cylinder(plaza,.08,.1,2.8,P.ink,-4.2,1.4,13,8);
- colliderBox(-9.8,13,.1,.1);colliderBox(-4.2,13,.1,.1);
- for(const x of [-8,8]){bench(plaza,x,17);colliderBox(x,17,1.1,.45);}
+ sign(plaza,'ILHA DO DESENVOLVEDOR',5.6,.65,0,2.6,-1.7,P.ink,P.cream);
+ for(const x of [-2.5,2.5]){cylinder(plaza,.08,.1,2.8,P.ink,x,1.4,-1.7,8);colliderBox(plaza.position.x+x,plaza.position.z-1.7,.1,.1);}
+ for(const x of [-1.8,1.8]){bench(plaza,x,1.5);colliderBox(plaza.position.x+x,plaza.position.z+1.5,1.1,.45);}
 
  // Paved bridge over timber supports; keep the beams below the ramp surface.
  const bridgeGroup=group();bridgeGroup.name='bridge';occluders.push(bridgeGroup);
  for(let z=-17;z<12;z+=.8){const h=bridgeHeight(z),beam=box(bridgeGroup,7.7,.14,.68,'#b08b60',33,h-.14,z);beam.rotation.x=-Math.atan2(bridgeHeight(z+.34)-bridgeHeight(z-.34),.68);}
  for(const x of [29,37])for(let z=-17;z<=11;z+=2){const h=bridgeHeight(z);box(bridgeGroup,.25,1.15,.25,P.ink,x,h+.52,z);if(z<11){const next=bridgeHeight(z+2),rail=box(bridgeGroup,.13,.15,Math.hypot(2,next-h),P.ink,x,(h+next)/2+1,z+1);rail.rotation.x=-Math.atan2(next-h,2);}}
- for(const z of [-9,3])for(const x of [30,36])box(bridgeGroup,.6,3.8,.6,P.ink,x,-.3,z);
+ for(const z of [-9,3])for(const x of [30,36]){const bottom=terrainHeight(x,z)-.3,top=bridgeHeight(z)-.2;box(bridgeGroup,.6,top-bottom,.6,P.ink,x,(top+bottom)/2,z);}
  for(const z of [-18,12]){sign(bridgeGroup,'PONTE DOS COMMITS',4.5,.55,33,3,z,z<0?P.ink:P.wood,P.cream);}
 
  // Extruded stone arch: the opening is geometry, not a painted tunnel entrance.
@@ -153,45 +177,73 @@ export function createScenery(scene,projects){
  // Vegetation is decorative only: no colliders, so the car can cross the groves.
  // Keep clusters clear of road corridors for visibility.
  const plants=[];
- for(let i=0;i<700;i++){
-  const a=random()*Math.PI*2,r=13+random()*39,x=Math.cos(a)*r,z=Math.sin(a)*r;
+ for(let i=0;i<1600;i++){
+  const a=random()*Math.PI*2,r=13+random()*63,x=Math.cos(a)*r,z=Math.sin(a)*r;
   if(nearRoad(x,z,2.3)||Math.abs(x)<12&&z>-8&&z<22||projects.some(p=>Math.abs(p.x-x)<11&&Math.abs(p.z-z)<14)||Math.hypot(x-secret.x,z-secret.z)<5||Math.abs(x+43)<9&&Math.abs(z)<14||Math.abs(x-33)<10&&Math.abs(z+3)<19||terrainHeight(x,z)<-.2)continue;
   if(plants.some(p=>Math.hypot(x-p.x,z-p.z)<2.7))continue;
-  plants.push({x,z,s:.65+random()*.5});if(plants.length===95)break;
+  if(secrets.some(s=>Math.hypot(x-s.x,z-s.z)<8.5)||Math.hypot(x-plaza.position.x,z-plaza.position.z)<4.8)continue;
+  plants.push({x,z,s:.65+random()*.5});if(plants.length===170)break;
  }
  const trunks=new T.InstancedMesh(new T.CylinderGeometry(.13,.23,2.3,7),material('#897350'),plants.length);
  const crowns=new T.InstancedMesh(new T.IcosahedronGeometry(1.5,1),material(P.grassDark),plants.length);
  const tips=new T.InstancedMesh(new T.IcosahedronGeometry(1.1,1),material('#a9bb82'),plants.length);
  [trunks,crowns,tips].forEach(m=>{m.castShadow=true;m.receiveShadow=true;root.add(m);});
  plants.forEach((p,i)=>{
-  const y=terrainHeight(p.x,p.z);dummy.rotation.set(0,i*.7,0);dummy.scale.setScalar(p.s);
+  const y=terrainHeight(p.x,p.z);p.y=y;dummy.rotation.set(0,i*.7,0);dummy.scale.setScalar(p.s);
   dummy.position.set(p.x,y+1.15*p.s,p.z);dummy.updateMatrix();trunks.setMatrixAt(i,dummy.matrix);
   dummy.position.y=y+2.9*p.s;dummy.scale.set(p.s,p.s*.9,p.s);dummy.updateMatrix();crowns.setMatrixAt(i,dummy.matrix);
   dummy.position.set(p.x+.5*p.s,y+3.5*p.s,p.z+.1);dummy.scale.setScalar(p.s);dummy.updateMatrix();tips.setMatrixAt(i,dummy.matrix);
  });
+ const treeMeshes=[trunks,crowns,tips];
+ const treeBases=treeMeshes.map(mesh=>plants.map((_,i)=>{const matrix=new T.Matrix4();mesh.getMatrixAt(i,matrix);return matrix;}));
+ const falling=new Set(),pivot=new T.Matrix4(),rotation=new T.Matrix4(),inversePivot=new T.Matrix4(),fallenMatrix=new T.Matrix4();
+ function placeFallenTree(i,angle){
+  const p=plants[i];pivot.makeTranslation(p.x,p.y,p.z);
+  rotation.makeRotationAxis(p.axis,angle);
+  inversePivot.makeTranslation(-p.x,-p.y,-p.z);
+  pivot.multiply(rotation).multiply(inversePivot);
+  treeMeshes.forEach((mesh,j)=>{fallenMatrix.multiplyMatrices(pivot,treeBases[j][i]);mesh.setMatrixAt(i,fallenMatrix);mesh.instanceMatrix.needsUpdate=true;});
+ }
+ function hitTrees(x,z,vx,vz,reduced=false){
+  const speed=Math.hypot(vx,vz);if(speed<3)return 0;
+  let hits=0;
+  for(let i=0;i<plants.length;i++){
+   const p=plants[i];if(p.fallen||Math.hypot(x-p.x,z-p.z)>1.4+.2*p.s)continue;
+   p.fallen=true;p.fallTime=0;p.axis=new T.Vector3(vz,0,-vx).normalize();
+   if(reduced)placeFallenTree(i,1.45);else falling.add(i);
+   hits++;
+  }
+  return hits;
+ }
  // Instanced shoreline stones, never inside the road network.
  const rocks=new T.InstancedMesh(new T.IcosahedronGeometry(1,0),material('#aab5a3'),65);
- for(let i=0;i<65;i++){const a=i/65*Math.PI*2,r=55.1+random();dummy.position.set(Math.cos(a)*r,terrainHeight(Math.cos(a)*r,Math.sin(a)*r)+.1,Math.sin(a)*r);dummy.rotation.set(random(),random()*3,random());dummy.scale.set(.4+random()*.5,.25+random()*.3,.5+random()*.6);dummy.updateMatrix();rocks.setMatrixAt(i,dummy.matrix);}rocks.castShadow=true;root.add(rocks);
+ for(let i=0;i<65;i++){const a=i/65*Math.PI*2,r=79.1+random();dummy.position.set(Math.cos(a)*r,terrainHeight(Math.cos(a)*r,Math.sin(a)*r)+.1,Math.sin(a)*r);dummy.rotation.set(random(),random()*3,random());dummy.scale.set(.4+random()*.5,.25+random()*.3,.5+random()*.6);dummy.updateMatrix();rocks.setMatrixAt(i,dummy.matrix);}rocks.castShadow=true;root.add(rocks);
 
  // Road lamps share one emissive material; three local lights illuminate key interiors.
  for(let i=0;i<coastal.samples.length;i+=28){const p=coastal.samples[i],n=coastal.samples[(i+1)%coastal.samples.length],a=Math.atan2(n.x-p.x,n.z-p.z),x=p.x+Math.cos(a)*5,z=p.z-Math.sin(a)*5;if(Math.hypot(x,z)>53||Math.abs(x+43)<8&&Math.abs(z)<13||nearRoad(x,z,.6))continue;
   const g=group(x,terrainHeight(x,z),z);cylinder(g,.07,.13,4.5,P.ink,0,2.25,0,8);box(g,1,.12,.12,P.ink,.4,4.4,0);fixture(g,.8,4.3,0);obstacles.push({x,z,radius:.13});
  }
- const foamMat=new T.MeshBasicMaterial({color:'#c5e4d4',transparent:true,opacity:.23,side:T.DoubleSide,depthWrite:false});
- const foam=[];for(let i=0;i<16;i++){const a=i/16*Math.PI*2,r=63+i%3*4,m=new T.Mesh(new T.RingGeometry(2,2.07,24,1,0,Math.PI*1.3),foamMat);m.rotation.x=-Math.PI/2;m.position.set(Math.cos(a)*r,-1.31,Math.sin(a)*r);root.add(m);foam.push(m);}
  // Keep occluders individually addressable by the camera. Only rigid decoration
  // outside those groups is batched; scenery transforms are otherwise immutable.
- const moving=new Set([...animated.map(a=>a.mesh),...foam]);
+ const moving=new Set([...animated.map(a=>a.mesh),water,shore]);
  const protectedGroups=new Set(occluders);
  function batchDecoration(group){if(protectedGroups.has(group))return;for(const child of [...group.children])if(child.isGroup)batchDecoration(child);batchRigidMeshes(group,{exclude:moving});}
  batchDecoration(root);
  root.updateMatrixWorld(true);
  root.traverse(o=>{if(!moving.has(o)){o.matrixAutoUpdate=false;o.matrixWorldAutoUpdate=false;}});
- function update(time,reduced=false){
+ let previousTreeTime=0;
+ function update(time,reduced=false,carPosition=null,driver=null){
+  ambient.update(time,reduced);
+  const dt=Math.max(0,Math.min(time-previousTreeTime,.1));previousTreeTime=time;
+  for(const i of falling){
+   const p=plants[i];p.fallTime=Math.min(.48,p.fallTime+dt);
+   const progress=reduced?1:p.fallTime/.48;
+   placeFallenTree(i,1.45*(1-(1-progress)**3));
+   if(progress>=1)falling.delete(i);
+  }
+  ocean.update(time,reduced,carPosition,driver);
   if(reduced)return;
-  for(const a of animated)a.mesh.rotation.y=Math.sin(time*1.8+a.phase)*.075;
-  for(let i=0;i<foam.length;i++){const s=1+Math.sin(time*.45+i)*.08;foam[i].scale.set(s,s,s);}
-  waterMaterial.roughness=.33+Math.sin(time*.3)*.025;
+   for(const a of animated)a.mesh.rotation.y=Math.sin(time*1.8+a.phase)*.075;
  }
- return {root,obstacles,occluders,fixtures,routeLines,plants,update,secret};
+ return {root,obstacles,occluders,fixtures,routeLines,plants,hitTrees,update,secret};
 }

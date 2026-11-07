@@ -10,14 +10,14 @@ import {createLighting} from '../dist/lighting.js';
 globalThis.document={createElement:()=>({getContext:()=>({fillRect(){},fillText(){}})})};
 const scene=new T.Scene();scene.background=new T.Color();scene.fog=new T.Fog('#fff',90,210);
 const world=createScenery(scene,projects.map(p=>({...p})));
-function collides(x,z,objects=world.obstacles,radius=1.15){return objects.some(o=>o.radius?Math.hypot(x-o.x,z-o.z)<radius+o.radius:Math.hypot(Math.max(Math.abs(x-o.x)-o.hx,0),Math.max(Math.abs(z-o.z)-o.hz,0))<radius);}
+function collides(x,z,objects=world.obstacles.filter(o=>!o.groundOnly),radius=1.15){return objects.some(o=>o.radius?Math.hypot(x-o.x,z-o.z)<radius+o.radius:Math.hypot(Math.max(Math.abs(x-o.x)-o.hx,0),Math.max(Math.abs(z-o.z)-o.hz,0))<radius);}
 
-test('bridge deck is above lagoon with continuous shallow ramps and safe road',()=>{
- assert.ok(terrainHeight(33,-3)<-2);assert.ok(surfaceHeight(33,-3)>1.6);assert.equal(bridgeHeight(-18),0);assert.equal(bridgeHeight(12),0);
+test('bridge deck clears the dry underpass with continuous ramps and safe road',()=>{
+ assert.equal(terrainHeight(33,-3),0);assert.ok(surfaceHeight(33,-3)>4.5);assert.equal(bridgeHeight(-18),0);assert.equal(bridgeHeight(12),0);
  assert.equal(inWater(33,-3),false);assert.equal(inWater(38,-3),false);assert.equal(inWater(30,-3),false);
- assert.equal(inWater(33+4.1,-3),true);
+ assert.equal(inWater(33+4.1,-3,false),false);
  let previous=surfaceHeight(33,-18);
- for(let z=-17.9;z<=12;z+=.1){const h=surfaceHeight(33,z);assert.ok(Math.abs(h-previous)<.04);assert.equal(collides(33,z),false);previous=h;}
+ for(let z=-17.9;z<=12;z+=.1){const h=surfaceHeight(33,z);assert.ok(Math.abs(h-previous)<.09);assert.equal(collides(33,z),false);previous=h;}
  assert.ok(groundPose(33,10,0).pitch>0);assert.ok(groundPose(33,-16,0).pitch<0);
 });
 test('garage and tunnel have open lanes, with solid sides',()=>{
@@ -26,7 +26,7 @@ test('garage and tunnel have open lanes, with solid sides',()=>{
  assert.ok(collides(-48,0));assert.ok(collides(6,0));
 });
 test('every marked road centre avoids buildings, furniture and water',()=>{
- const bad=[];for(const route of routes)for(const p of routeSamples(route,1)){if(collides(p.x,p.z)||inWater(p.x,p.z))bad.push(`${route.id}@${p.x.toFixed(1)},${p.z.toFixed(1)}`);}
+ const bad=[];for(const route of routes)for(const p of routeSamples(route,1)){const deck=route.id!=='underpass',obstacles=world.obstacles.filter(o=>!(o.deckOnly&&!deck||o.groundOnly&&deck));if(collides(p.x,p.z,obstacles)||inWater(p.x,p.z,deck))bad.push(`${route.id}@${p.x.toFixed(1)},${p.z.toFixed(1)}`);}
  assert.deepEqual(bad,[]);
 });
 test('all destinations and lookout are reachable from spawn on a clearance grid',()=>{

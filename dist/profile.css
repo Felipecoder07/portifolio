@@ -1,0 +1,61 @@
+/* Profile and résumé share the portfolio's existing theme. */
+.navlinks{flex-wrap:wrap;gap:18px}.navlinks a{font-size:14px}.topbar .return-world{color:var(--lime);font:600 12px var(--sans)}
+.hero h1{font-size:clamp(44px,5.4vw,72px);letter-spacing:-2px}.hero-actions{flex-wrap:wrap}
+.hero p,.about-copy p,.project-info p{font-size:15px}.hero-meta{font-size:12px;color:var(--muted)}
+.resume{border-top:1px solid var(--line);margin-top:64px;padding-top:48px}
+.resume .section-head{align-items:center;gap:24px}.resume .kicker{font-size:12px}
+.resume-heading{margin-bottom:28px}.resume-heading h3{font:600 28px var(--display);margin:0 0 8px}.resume-heading p{margin:0;color:var(--muted);font-size:16px}
+.resume-grid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(240px,1fr);gap:32px}
+.resume-main,.resume-sidebar{min-width:0}.resume-block{margin-bottom:24px}.resume-block:last-child{margin-bottom:0}
+.resume-block h3{font:600 20px var(--display);margin:0 0 14px;letter-spacing:-.4px}
+.resume-block p,.resume-block li{font-size:15px;line-height:1.6;color:var(--muted)}
+.resume-block p{margin:0 0 8px}.resume-block ul{padding-left:20px;margin:8px 0}
+.resume-experience{border-bottom:1px solid var(--line);padding:0 0 16px;margin-bottom:16px}.resume-experience:last-child{padding-bottom:0;margin-bottom:0;border-bottom:0}
+.resume-experience h4{font:600 18px var(--display);margin:0 0 8px}.resume-experience a{color:var(--lime);font-size:14px;text-decoration:underline;text-underline-offset:4px}
+.resume-sidebar{border-left:1px solid var(--line);padding:0 0 0 24px;align-self:start}
+.resume-skills{display:flex;gap:6px 12px;flex-wrap:wrap}.resume-skills span{font-size:14px;color:var(--muted)}
+.resume-contact{overflow-wrap:anywhere;text-decoration:underline;text-underline-offset:4px;line-height:1.8}
+.resume-note{font-size:13px;color:var(--muted);line-height:1.6;margin-top:20px}
+@media(max-width:750px){.resume-grid{grid-template-columns:1fr}.resume .section-head{align-items:flex-start}.resume{margin-top:40px}.navlinks{gap:12px}.navlinks a{font-size:13px}nav{gap:20px;align-items:flex-start}.hero h1{font-size:48px;letter-spacing:-1.5px}.topbar .return-world{font-size:11px}.resume-sidebar{padding:20px}}
+@media(max-width:650px){.topright{display:none}.topbar{gap:12px}.topbar .return-world{white-space:nowrap}.hero-meta{flex-wrap:wrap}.hero-actions .btn{font-size:13px}.dock{max-width:calc(100vw - 24px)}}
+@media(max-width:400px){.dock{gap:4px}.dock .divider{display:none}.dock button,.dock a{width:36px;flex-shrink:0}.hero h1{font-size:42px}.topbar .osbrand span{display:none}}
+@media print{
+ @page{size:A4;margin:16mm}
+ html,body,body.light{background:#fff!important;color:#17251f!important;font-family:Arial,sans-serif;font-size:11pt}
+ body>*,main>*{display:none!important}body>main,main>#curriculo{display:block!important}
+ main{max-width:none;margin:0;padding:0}.resume{border:0;margin:0;padding:0;scroll-margin:0}
+ .resume button,.resume .kicker,.resume .section-head{display:none!important}
+ .resume-heading{margin-bottom:20px}.resume-heading h3{font-size:26pt}.resume-heading p{font-size:12pt}
+ .resume-grid{display:block}.resume-sidebar{padding:16px 0 0;border:0;border-top:1px solid #bbb;background:none}
+ .resume-block{margin-bottom:18px}.resume-block h3{font-size:14pt}.resume-experience h4{font-size:12pt}
+ .resume p,.resume li,.resume a,.resume-note,.resume-skills span{color:#17251f!important;font-size:10pt;line-height:1.5}
+ .resume-experience{break-inside:avoid;padding-bottom:18px;border-color:#ccc}.resume-block{break-inside:avoid}
+ .resume-skills span{border-color:#ccc;padding:4px 7px}.resume-contact::after{content:' (' attr(href) ')';font-size:9pt}
+}
+
+/* Consistent icons within the original visual design. */
+.ui-icon{width:18px;height:18px;display:inline-block;vertical-align:middle;flex-shrink:0;fill:none}.dock .ui-icon{width:20px;height:20px}
+.wordmark span{animation:blink-cursor 1s step-end infinite!important;display:inline-block}
+@keyframes blink-cursor{0%,100%{opacity:1}50%{opacity:0}}
+.projects{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+.project-thumb{aspect-ratio:16/10;background:#0d0f14;border-bottom:1px solid var(--line);overflow:hidden}
+.project-thumb img{width:100%;height:100%;object-fit:cover;object-position:top center;display:block;transition:transform .3s ease}
+.project:hover .project-thumb img{transform:scale(1.02)}
+.project-info{padding:20px 22px}
+.project-sub{font:500 13px var(--sans);color:var(--muted)!important;margin:4px 0 12px!important}
+.project-info p{font-size:14px;line-height:1.65;margin:0 0 14px}
+.project-info .tags{margin-top:auto}
+.modal-shot{margin:16px 0 8px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#0d0f14}
+.modal-shot img{width:100%;height:auto;display:block}
+@media(max-width:750px){.projects{grid-template-columns:1fr}}
+
+/* Siamese oneko mascot */
+#oneko{width:64px;height:64px;position:fixed;left:0;top:0;pointer-events:auto;cursor:grab;background-image:url('siamese-cat.png');background-size:512px 256px;background-repeat:no-repeat;image-rendering:pixelated;z-index:95;will-change:transform;touch-action:none}
+#oneko:active{cursor:grabbing}
+#oneko.disabled{display:none!important}
+.neko-heart{position:fixed;width:14px;height:12px;pointer-events:none;z-index:96;image-rendering:pixelated;animation:neko-heart-float .85s ease-out forwards!important}
+@keyframes neko-heart-float{0%{opacity:1;transform:translate(-50%,0) scale(.8)}50%{opacity:1;transform:translate(-50%,-14px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-26px) scale(.9)}}
+.cat-link-btn{background:none;border:0;padding:0;font:11px var(--mono);color:var(--muted);cursor:pointer;text-decoration:underline;text-underline-offset:4px}
+.cat-link-btn:hover{color:var(--white)}
+@media(max-width:650px){.topright{display:flex!important;gap:12px}.topright>span,.topright>time{display:none}}
+@media print{#oneko,.neko-heart,.cat-link-btn{display:none!important}}

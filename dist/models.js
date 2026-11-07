@@ -1,4 +1,5 @@
 import * as T from './three.js';
+import {terrainHeight} from './island-layout.js';
 const geometries=new Map();function geometry(key,create){if(!geometries.has(key))geometries.set(key,create());return geometries.get(key)}
 const cache=new Map();export function material(c){if(!cache.has(c))cache.set(c,new T.MeshStandardMaterial({color:c,roughness:.8}));return cache.get(c)}
 export function box(g,w,h,d,c,x=0,y=0,z=0,r=0){const m=new T.Mesh(geometry(`box:${w}:${h}:${d}`,()=>new T.BoxGeometry(w,h,d)),material(c));m.position.set(x,y,z);m.rotation.y=r;m.castShadow=true;m.receiveShadow=true;g.add(m);return m}
@@ -25,4 +26,16 @@ box(g,8,3.8,6,'#dfab80',0,2.3,-1);box(g,8.8,.45,6.8,'#b96e50',0,4.4,-1);sign(g,'
 }else{
 box(g,6,3.5,5,'#a7b487',0,2.1,-1);const roof=new T.Mesh(new T.ConeGeometry(5.1,2,4),material('#7b8e69'));roof.rotation.y=Math.PI/4;roof.position.set(0,4.7,-1);roof.scale.z=.9;g.add(roof);window(g,-1.6,2,1.55,1.5,1.5);box(g,1.5,2.5,.15,'#687c5a',1.5,1.55,1.6);sign(g,'ACHADOS & PERDIDOS',5.8,.7,0,3.4,1.6);for(let i=0;i<3;i++){box(g,1,.9,1,'#bc986d',-4+i*.3,.8+i*.7,2);box(g,.1,.9,1.02,'#ddc9a2',-4+i*.3,.8+i*.7,2)}box(g,.8,1.1,.45,'#d48865',4,.9,2);box(g,.5,.45,.15,'#bc7052',4,.7,2.3);bench(g,0,4);}
 // Destination marker and small roadside plaque.
-const marker=cylinder(g,1.9,1.9,.035,'#fff2d4',0,.12,11,48);const ring=new T.Mesh(new T.RingGeometry(1.65,1.8,48),new T.MeshBasicMaterial({color:p.color,side:T.DoubleSide}));ring.rotation.x=-Math.PI/2;ring.position.set(0,.15,11);g.add(ring);const arrow=sign(g,'P',1,1,0,.17,11);arrow.rotation.x=-Math.PI/2;box(g,.1,1.5,.1,'#7d8064',4,.8,7.5);sign(g,p.name.toUpperCase(),3.5,.65,4,1.8,7.6);p.group=g;return g}
+const destination=new T.Group();destination.name='destination-marker-'+p.id;destination.position.set(0,terrainHeight(p.x,p.z+11),11);g.add(destination);
+const marker=cylinder(destination,1.9,1.9,.035,'#fff2d4',0,.16,0,48);
+// Isolate this material: the cached cream material also belongs to buildings.
+marker.material=marker.material.clone();marker.name='destination-disc';
+const ring=new T.Mesh(new T.RingGeometry(1.65,1.8,48),new T.MeshBasicMaterial({color:p.color,side:T.DoubleSide}));ring.name='destination-ring';ring.rotation.x=-Math.PI/2;ring.position.y=.19;destination.add(ring);
+const arrow=sign(destination,'P',1,1,0,.21,0);arrow.name='destination-label';arrow.rotation.x=-Math.PI/2;
+// Render these ground decals after pavement, but keep depth testing so the car
+// still covers them. All three share the same bias, preserving their real gaps.
+for(const [i,mesh] of [marker,ring,arrow].entries()){
+ mesh.renderOrder=3+i;mesh.castShadow=mesh.receiveShadow=false;
+ mesh.material.polygonOffset=true;mesh.material.polygonOffsetFactor=-3;mesh.material.polygonOffsetUnits=-64;
+}
+box(g,.1,1.5,.1,'#7d8064',4,.8,7.5);sign(g,p.name.toUpperCase(),3.5,.65,4,1.8,7.6);p.group=g;return g}

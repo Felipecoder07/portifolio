@@ -4,3 +4,7 @@
 #skip-intro{position:fixed;z-index:3;left:50%;bottom:110px;transform:translateX(-50%);background:#294b3f;color:#fff;border:1px solid #fff8;border-radius:24px;padding:13px 22px;font-size:12px;min-height:44px}
 #recenter,#reset{min-width:44px;min-height:44px;border:1px solid #fff9;background:#ffffffe0;color:#294b3f;border-radius:50%;font-size:22px}
 canvas.world:focus-visible{outline:3px solid #e38052;outline-offset:-3px}
+body.pointer-input button:focus,body.pointer-input a:focus,body.pointer-input canvas.world:focus{outline:none}
+/* Discoveries live in the menu; no permanent exploration overlay. */
+.secret-list{display:grid;gap:12px;margin:22px 0}.secret-card{border:1px solid #b8bfaa;border-radius:14px;padding:16px;background:#e5e8d9}.secret-card small{font-size:11px;letter-spacing:1px;color:#466454}.secret-card h3{margin:8px 0;font-size:18px}.secret-card p{margin:0;line-height:1.6}#secrets-reset{min-height:44px;padding:10px 16px;border:1px solid #879781;border-radius:10px;background:transparent;color:#29483f;cursor:pointer}#secrets-reset:disabled{opacity:.5;cursor:default}
+.secret-card blockquote{margin:16px 0 12px;padding:4px 0 4px 14px;border-left:3px solid #a87949;font-size:16px;line-height:1.65;color:#29483f}
